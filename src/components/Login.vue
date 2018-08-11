@@ -57,6 +57,7 @@ export default {
                   message: '登陆成功',
                   type: 'success'
                 })
+                localStorage.setItem('userToken', res.data.data.token)
                 // 跳转到首页
                 this.$router.push('/home')
               } else {
