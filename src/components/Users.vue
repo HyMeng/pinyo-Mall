@@ -9,7 +9,32 @@
     <el-input placeholder="请输入内容" v-model="query" @change="search" class="input-with-select">
       <el-button slot="append" icon="el-icon-search" @click="search"></el-button>
     </el-input>
-    <el-button type="success" plain>添加用户</el-button>
+    <el-button type="success" plain @click="showDialog">添加用户</el-button>
+    <!-- 添加用户的模态框 -->
+    <el-dialog
+      title="添加用户"
+      :visible.sync="addUserDialog"
+      width="40%"
+      >
+      <el-form ref="addForm" :rules="addRules" :model="addForm" label-width="80px">
+        <el-form-item label="用户名" prop="username">
+          <el-input v-model="addForm.username" placeholder="请输入用户名"></el-input>
+        </el-form-item>
+        <el-form-item label="密码" prop="password">
+          <el-input v-model="addForm.password" placeholder="请输入密码"></el-input>
+        </el-form-item>
+        <el-form-item label="邮箱" prop="email">
+          <el-input v-model="addForm.email" placeholder="请输入邮箱"></el-input>
+        </el-form-item>
+        <el-form-item label="手机号" prop="mobile">
+          <el-input v-model="addForm.mobile" placeholder="请输入手机号"></el-input>
+        </el-form-item>
+      </el-form>
+      <span slot="footer" class="dialog-footer">
+        <el-button @click="addUserDialog = false">取 消</el-button>
+        <el-button type="primary" @click="addUser">确 定</el-button>
+      </span>
+    </el-dialog>
     <!-- 表格 -->
     <!-- el-table:表格组件 -->
     <!-- :data='tableData' 表格显示的数据 -->
@@ -47,7 +72,8 @@
           <el-switch
             v-model="scope.row.mg_state"
             active-color="#13ce66"
-            inactive-color="#ff4949">
+            inactive-color="#ff4949"
+            @change="changeState(scope.row)">
           </el-switch>
         </template>
       </el-table-column>
@@ -55,12 +81,34 @@
         align="center"
         label="操作">
         <template slot-scope="scope">
-          <el-button type="primary" size="small" icon="el-icon-edit"></el-button>
-          <el-button type="danger" size="small" icon="el-icon-delete"></el-button>
+          <el-button type="primary" size="small" icon="el-icon-edit"  @click="showEditDialog(scope.row)"></el-button>
+          <el-button type="danger" size="small" icon="el-icon-delete" @click="deleteUser(scope.row)"></el-button>
           <el-button type="success" plain size="small" icon="el-icon-check">分配角色</el-button>
         </template>
       </el-table-column>
     </el-table>
+    <!-- 编辑用户信息 -->
+    <el-dialog
+      title="添加用户"
+      :visible.sync="editUserDialog"
+      width="40%"
+      >
+      <el-form ref="editForm" :rules="addRules" :model="editForm" label-width="80px">
+        <el-form-item label="用户名">
+          <el-tag type="info">{{editForm.username}}</el-tag>
+        </el-form-item>
+        <el-form-item label="邮箱" prop="email">
+          <el-input v-model="editForm.email" placeholder="请输入邮箱"></el-input>
+        </el-form-item>
+        <el-form-item label="手机号" prop="mobile">
+          <el-input v-model="editForm.mobile" placeholder="请输入手机号"></el-input>
+        </el-form-item>
+      </el-form>
+      <span slot="footer" class="dialog-footer">
+        <el-button @click="editUserDialog = false">取 消</el-button>
+        <el-button type="primary" @click="editUser">确 定</el-button>
+      </span>
+    </el-dialog>
     <!-- el-pagination:分页组件 -->
     <!-- background：带背景 -->
     <!-- layout：分页组件显示的内容 -->
@@ -84,7 +132,6 @@
 </template>
 
 <script>
-import axios from 'axios'
 export default {
   data () {
     return {
@@ -92,27 +139,53 @@ export default {
       currentPage: 1, // 当前页
       pagesize: 2, // 显示页面的条数
       tableData: [], // 表格的数据
-      total: 0 // 总条数
+      addUserDialog: false,
+      editUserDialog: false,
+      total: 0, // 总条数
+      addForm: {
+        username: '',
+        password: '',
+        email: '',
+        mobile: ''
+      },
+      editForm: {
+        username: '',
+        email: '',
+        mobile: '',
+        id: ''
+      },
+      addRules: {
+        username: [
+          {required: true, message: '请输入用户名称', trigger: 'blur'},
+          {min: 3, max: 6, message: '长度在 3 到 6 个字符', trigger: 'change'}
+        ],
+        password: [
+          {required: true, message: '请输入用户密码', trigger: 'blur'},
+          {min: 6, max: 12, message: '长度在 6 到 12 个字符', trigger: 'change'}
+        ],
+        email: [
+          {type: 'email', message: '请输入正确的邮箱地址', trigger: ['blur', 'change']}
+        ],
+        mobile: [
+          {pattern: /^1[0-9]{10}$/, message: '请输入正确的手机号', trigger: ['blur', 'change']}
+        ]
+      }
     }
   },
   methods: {
     getUserInfo () {
-      axios.get('http://localhost:8888/api/private/v1/users', {
+      this.axios.get('users', {
         params: {
           query: this.query,
           pagenum: this.currentPage,
           pagesize: this.pagesize
-        },
-        headers: {
-          'Authorization': localStorage.getItem('userToken')
         }
       }).then(res => {
         // console.log(res.data)
-        let data = res.data.data
-        let meta = res.data.meta
-        if (meta.status === 200) {
-          this.total = data.total
-          this.tableData = data.users
+        const {meta: {status}, data: {total, users}} = res.data
+        if (status === 200) {
+          this.total = total
+          this.tableData = users
         }
       })
     },
@@ -130,6 +203,104 @@ export default {
     search () {
       this.currentPage = 1
       this.getUserInfo()
+    },
+    changeState (user) {
+      this.axios.put(`users/${user.id}/state/${user.mg_state}`)
+        .then(res => {
+          // console.log(res.data)
+          const {meta: {status, msg}} = res.data
+          if (status === 200) {
+            this.$message.success(msg)
+          } else {
+            this.$message.error(msg)
+          }
+        })
+    },
+    deleteUser (user) {
+      this.$confirm('你确定要删除该用户吗?', '温馨提示', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }).then(() => {
+        this.axios.delete(`users/${user.id}`)
+          .then(res => {
+            const {meta: {status, msg}} = res.data
+            if (status === 200) {
+              if (this.tableData.length === 1) {
+                --this.currentPage
+              }
+              this.getUserInfo()
+
+              this.$message.success(msg)
+            } else {
+              this.$message.error(msg)
+            }
+          })
+      }).catch(() => {
+        this.$message({
+          type: 'info',
+          message: '已取消删除'
+        })
+      })
+    },
+    showDialog () {
+      this.addUserDialog = true
+    },
+    addUser () {
+      this.$refs.addForm.validate(valide => {
+        if (valide) {
+          this.axios.post('users', this.addForm)
+            .then(res => {
+              console.log(res.data)
+              const {meta: {msg, status}} = res.data
+              if (status === 201) {
+                // 关闭模态框
+                this.addUserDialog = false
+                // 重置表单
+                this.$refs.addForm.resetFields()
+                // 弹出消息框提示操作成功
+                this.$message.success(msg)
+                // 渲染时默认total是上次
+                ++this.total
+                this.currentPage = Math.ceil(this.total / this.pagesize)
+                // 重新渲染页面
+                this.getUserInfo()
+              } else {
+                this.$message.error(msg)
+              }
+            })
+        } else {
+          return false
+        }
+      })
+    },
+    showEditDialog (user) {
+      this.editUserDialog = true
+      this.editForm.username = user.username
+      this.editForm.email = user.email
+      this.editForm.mobile = user.mobile
+      this.editForm.id = user.id
+    },
+    // 修改用户信息
+    editUser () {
+      this.$refs.editForm.validate(valide => {
+        if (valide) {
+          this.axios.put(`users/${this.editForm.id}`, this.editForm)
+            .then(res => {
+              const {meta: {status, msg}} = res.data
+              if (status === 200) {
+                this.editUserDialog = false
+                this.$refs.editForm.resetFields()
+                this.getUserInfo()
+                this.$message.success(`恭喜您,${msg}`)
+              } else {
+                this.$message.error('编辑用户信息失败')
+              }
+            })
+        } else {
+          return false
+        }
+      })
     }
   },
   created () {
