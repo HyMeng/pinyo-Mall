@@ -35,37 +35,35 @@ export default {
       // 表单验证
       rules: {
         username: [
-          {required: true, message: '请输入用户名称', trigger: 'change'},
-          {min: 3, max: 6, message: '长度在 3 到 6 个字符', trigger: 'change'}
+          {required: true, message: '请输入用户名称', trigger: 'blur'},
+          {min: 3, max: 6, message: '长度在 3 到 6 个字符', trigger: ['blur', 'change']}
         ],
         password: [
-          {required: true, message: '请输入用户密码', trigger: 'change'},
-          {min: 6, max: 12, message: '长度在 6 到 12 个字符', trigger: 'change'}
+          {required: true, message: '请输入用户密码', trigger: 'blur'},
+          {min: 6, max: 12, message: '长度在 6 到 12 个字符', trigger: ['blur', 'change']}
         ]
       }
     }
   },
   methods: {
     login () {
-      this.$refs.form.validate(valide => {
+      this.$refs.form.validate(async valide => {
         if (valide) {
-          this.axios.post('login', this.form)
-            .then(res => {
-              console.log(res.data)
-              // 对象的解构化
-              const {meta: {status, msg}, data: {token}} = res.data
-              if (status === 200) {
-                this.$message({
-                  message: '登陆成功',
-                  type: 'success'
-                })
-                localStorage.setItem('userToken', token)
-                // 跳转到首页
-                this.$router.push('/home')
-              } else {
-                this.$message.error(msg)
-              }
+          const res = await this.axios.post('login', this.form)
+          console.log(res.data)
+          // 对象的解构化
+          const {meta: {status, msg}, data} = res.data
+          if (status === 200) {
+            this.$message({
+              message: '登陆成功',
+              type: 'success'
             })
+            localStorage.setItem('userToken', data.token)
+            // 跳转到首页
+            this.$router.push('/home')
+          } else {
+            this.$message.error(msg)
+          }
         } else {
           return false
         }

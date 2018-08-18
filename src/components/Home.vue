@@ -24,49 +24,22 @@
             <el-menu
               unique-opened
               router
-              default-active="1-1"
+              :default-active="$route.path.slice(1).split('-')[0]"
               class="el-menu-vertical-demo"
               @open="handleOpen"
               @close="handleClose"
               background-color="#545c64"
               text-color="#fff"
               active-text-color="#ffd04b">
-              <el-submenu index="1">
+              <el-submenu :index="lev1.path" v-for="lev1 in menuList" :key="lev1.id">
                 <template slot="title">
                   <i class="el-icon-location"></i>
-                  <span>用户管理</span>
+                  <span>{{lev1.authName}}</span>
                 </template>
-                <el-menu-item index="/users">
+                <!-- 二级子菜单 -->
+                <el-menu-item :index="lev2.path" v-for="lev2 in lev1.children" :key="lev2.id">
                   <i class="el-icon-menu"></i>
-                  <span slot="title">用户列表</span>
-                </el-menu-item>
-              </el-submenu>
-              <el-submenu index="2">
-                <template slot="title">
-                  <i class="el-icon-document"></i>
-                  <span>权限管理</span>
-                </template>
-                <el-menu-item index="2-1">
-                  <i class="el-icon-menu"></i>
-                  <span slot="title">角色列表</span>
-                </el-menu-item>
-                <el-menu-item index="2-2">
-                  <i class="el-icon-menu"></i>
-                  <span slot="title">权限列表</span>
-                </el-menu-item>
-              </el-submenu>
-              <el-submenu index="3">
-                <template slot="title">
-                  <i class="el-icon-setting"></i>
-                  <span>商品管理</span>
-                </template>
-                <el-menu-item index="3-1">
-                  <i class="el-icon-menu"></i>
-                  <span slot="title">商品列表</span>
-                </el-menu-item>
-                <el-menu-item index="3-2">
-                  <i class="el-icon-menu"></i>
-                  <span slot="title">商品分类</span>
+                  <span slot="title">{{lev2.authName}}</span>
                 </el-menu-item>
               </el-submenu>
             </el-menu>
@@ -81,32 +54,49 @@
 </template>
 <script>
 export default {
+  data () {
+    return {
+      menuList: []
+    }
+  },
   methods: {
-    logout () {
-      this.$confirm('此操作将退出登录, 是否继续?', '温馨提示', {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning'
-      }).then(() => {
+    async logout () {
+      try {
+        await this.$confirm('此操作将退出登录, 是否继续?', '温馨提示', {
+          confirmButtonText: '确定',
+          cancelButtonText: '取消',
+          type: 'warning'
+        })
         localStorage.removeItem('userToken')
         this.$router.push('login')
         this.$message({
           type: 'success',
           message: '退出成功!'
         })
-      }).catch(() => {
+      } catch (e) {
         this.$message({
           type: 'info',
           message: '已取消退出'
         })
-      })
+      }
     },
     handleOpen (key, keyPath) {
       console.log(key, keyPath)
     },
     handleClose (key, keyPath) {
       console.log(key, keyPath)
+    },
+    async getMenuList () {
+      const res = await this.axios.get('menus')
+      const {meta: {status}, data} = res.data
+      console.log(res, '这是menulist')
+      if (status === 200) {
+        this.menuList = data
+      }
     }
+  },
+  created () {
+    this.getMenuList()
   }
 }
 </script>
